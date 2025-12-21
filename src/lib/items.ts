@@ -132,11 +132,28 @@ export async function uploadImage(file: File): Promise<string> {
 }
 
 /**
+ * Upload multiple images
+ */
+export async function uploadImages(files: File[]): Promise<string[]> {
+  try {
+    const uploadPromises = files.map((file) => uploadImage(file));
+    const urls = await Promise.all(uploadPromises);
+    return urls;
+  } catch (error) {
+    console.error("Error uploading multiple images:", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to upload images"
+    );
+  }
+}
+
+/**
  * Create new item
  */
 export async function createItem(
   data: ItemFormData,
-  imageUrl: string
+  imageUrl: string,
+  imageUrls?: string[]
 ): Promise<ClothingItem> {
   try {
     const itemCode = generateItemCode();
@@ -147,6 +164,7 @@ export async function createItem(
       price: data.price,
       description: data.description || "",
       imageUrl,
+      imageUrls: imageUrls || [],
       isSold: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),

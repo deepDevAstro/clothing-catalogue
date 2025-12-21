@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/lib/auth";
 import { isValidEmail, isValidPassword } from "@/lib/helpers";
-import { LogIn } from "lucide-react";
+import { LogIn, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
@@ -55,24 +56,117 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+      }}
+    >
+      {/* Back button */}
+      <Link
+        href="/"
+        style={{
+          position: "absolute",
+          top: "2rem",
+          left: "2rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          color: "#667eea",
+          textDecoration: "none",
+          fontWeight: "600",
+          fontSize: "0.95rem",
+          transition: "all 0.3s ease",
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.color = "#5a67d8";
+          e.currentTarget.style.transform = "translateX(-4px)";
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.color = "#667eea";
+          e.currentTarget.style.transform = "translateX(0)";
+        }}
+      >
+        <ArrowLeft size={18} />
+        Back to Home
+      </Link>
+
+      {/* Login Card */}
+      <div
+        style={{
+          background: "white",
+          borderRadius: "12px",
+          boxShadow: "0 10px 40px rgba(0, 0, 0, 0.1)",
+          maxWidth: "450px",
+          width: "100%",
+          padding: "2.5rem",
+          position: "relative",
+          zIndex: 10,
+        }}
+      >
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <LogIn className="text-amber-400" size={40} />
+        <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <div
+              style={{
+                background: "linear-gradient(45deg, #667eea, #764ba2)",
+                borderRadius: "12px",
+                padding: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <LogIn size={24} color="white" />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Login</h1>
-          <p className="text-gray-600 mt-2">Sign in to manage items</p>
+          <h1
+            style={{
+              fontSize: "2rem",
+              fontWeight: "700",
+              color: "#1a202c",
+              margin: 0,
+            }}
+          >
+            Admin Login
+          </h1>
+          <p
+            style={{
+              color: "#a0aec0",
+              marginTop: "0.5rem",
+              fontSize: "0.95rem",
+            }}
+          >
+            Sign in to manage items and orders
+          </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+        >
           {/* Email */}
-          <div>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          >
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              style={{
+                fontSize: "0.9rem",
+                fontWeight: "600",
+                color: "#2d3748",
+              }}
             >
               Email Address
             </label>
@@ -82,16 +176,42 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@example.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+              style={{
+                padding: "0.75rem 1rem",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontSize: "0.95rem",
+                fontFamily: "inherit",
+                color: "#2d3748",
+                transition: "all 0.3s ease",
+                boxSizing: "border-box",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "#667eea";
+                e.currentTarget.style.boxShadow =
+                  "0 0 0 3px rgba(102, 126, 234, 0.1)";
+                e.currentTarget.style.backgroundColor = "#f7fafc";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#e2e8f0";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.backgroundColor = "white";
+              }}
               required
             />
           </div>
 
           {/* Password */}
-          <div>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          >
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              style={{
+                fontSize: "0.9rem",
+                fontWeight: "600",
+                color: "#2d3748",
+              }}
             >
               Password
             </label>
@@ -101,7 +221,27 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+              style={{
+                padding: "0.75rem 1rem",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontSize: "0.95rem",
+                fontFamily: "inherit",
+                color: "#2d3748",
+                transition: "all 0.3s ease",
+                boxSizing: "border-box",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "#667eea";
+                e.currentTarget.style.boxShadow =
+                  "0 0 0 3px rgba(102, 126, 234, 0.1)";
+                e.currentTarget.style.backgroundColor = "#f7fafc";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#e2e8f0";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.backgroundColor = "white";
+              }}
               required
             />
           </div>
@@ -110,14 +250,52 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-amber-400 hover:bg-amber-500 disabled:bg-gray-400 text-white font-semibold py-2 rounded-lg transition mt-6"
+            style={{
+              background: loading
+                ? "linear-gradient(45deg, #cbd5e0, #a0aec0)"
+                : "linear-gradient(45deg, #667eea, #764ba2)",
+              color: "white",
+              fontWeight: "600",
+              fontSize: "0.95rem",
+              padding: "0.75rem 1.5rem",
+              height: "44px",
+              border: "none",
+              borderRadius: "8px",
+              cursor: loading ? "not-allowed" : "pointer",
+              transition: "all 0.3s ease",
+              boxShadow: loading
+                ? "none"
+                : "0 4px 15px rgba(102, 126, 234, 0.3)",
+            }}
+            onMouseOver={(e) => {
+              if (!loading) {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow =
+                  "0 8px 25px rgba(102, 126, 234, 0.4)";
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!loading) {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 15px rgba(102, 126, 234, 0.3)";
+              }
+            }}
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
         {/* Info */}
-        <p className="text-center text-sm text-gray-600 mt-6">
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: "0.8rem",
+            color: "#a0aec0",
+            marginTop: "1.5rem",
+            marginBottom: 0,
+          }}
+        >
           Demo: Use configured admin email and password
         </p>
       </div>

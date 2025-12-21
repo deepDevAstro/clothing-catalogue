@@ -9,7 +9,7 @@ import { ClothingItem } from "@/types";
 import { logoutUser } from "@/lib/auth";
 import { formatPrice } from "@/lib/helpers";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { Plus, LogOut, Edit2, Trash2, Package } from "lucide-react";
+import { Plus, LogOut, Edit2, Trash2, Package, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminDashboard() {
@@ -91,27 +91,136 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: "100vh", background: "#f5f7fa" }}>
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Package className="text-amber-400" size={32} />
-            <h1 className="text-2xl font-bold text-gray-900">
-              Admin Dashboard
-            </h1>
+      <header
+        style={{
+          background: "white",
+          borderBottom: "1px solid #e2e8f0",
+          position: "sticky",
+          top: 0,
+          zIndex: 40,
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1280px",
+            margin: "0 auto",
+            padding: "1rem 2rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <Link
+              href="/"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                color: "#667eea",
+                textDecoration: "none",
+                fontWeight: "600",
+                fontSize: "0.9rem",
+                transition: "all 0.3s ease",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "#5a67d8";
+                e.currentTarget.style.transform = "translateX(-4px)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#667eea";
+                e.currentTarget.style.transform = "translateX(0)";
+              }}
+            >
+              <ArrowLeft size={18} />
+              Back
+            </Link>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+                marginLeft: "1rem",
+                paddingLeft: "1rem",
+                borderLeft: "1px solid #e2e8f0",
+              }}
+            >
+              <Package size={28} style={{ color: "#667eea" }} />
+              <h1
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: "700",
+                  color: "#1a202c",
+                  margin: 0,
+                }}
+              >
+                Admin Dashboard
+              </h1>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
             <Link
               href="/admin/items/new"
-              className="flex items-center gap-2 px-4 py-2 bg-amber-400 text-white rounded-lg hover:bg-amber-500 transition"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.75rem 1rem",
+                background: "linear-gradient(45deg, #667eea, #764ba2)",
+                color: "white",
+                borderRadius: "8px",
+                fontWeight: "600",
+                fontSize: "0.9rem",
+                textDecoration: "none",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow =
+                  "0 8px 20px rgba(102, 126, 234, 0.4)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(102, 126, 234, 0.3)";
+              }}
             >
               <Plus size={18} />
               Add Item
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.75rem 1rem",
+                background: "#ff6b6b",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontWeight: "600",
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                boxShadow: "0 4px 12px rgba(255, 107, 107, 0.3)",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow =
+                  "0 8px 20px rgba(255, 107, 107, 0.4)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(255, 107, 107, 0.3)";
+              }}
             >
               <LogOut size={18} />
               Logout
@@ -121,102 +230,391 @@ export default function AdminDashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main
+        style={{
+          maxWidth: "1280px",
+          margin: "0 auto",
+          padding: "2rem",
+        }}
+      >
         {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-sm mb-2">Total Items</p>
-            <p className="text-3xl font-bold text-gray-900">{items.length}</p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "1.5rem",
+            marginBottom: "2.5rem",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+              padding: "1.5rem",
+              transition: "all 0.3s ease",
+              cursor: "default",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 12px 24px rgba(0, 0, 0, 0.1)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 4px 12px rgba(0, 0, 0, 0.05)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <p
+              style={{
+                color: "#a0aec0",
+                fontSize: "0.875rem",
+                fontWeight: "600",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Total Items
+            </p>
+            <p
+              style={{
+                fontSize: "2.25rem",
+                fontWeight: "700",
+                color: "#1a202c",
+                margin: 0,
+              }}
+            >
+              {items.length}
+            </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-sm mb-2">Available</p>
-            <p className="text-3xl font-bold text-green-600">
+
+          <div
+            style={{
+              background: "white",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+              padding: "1.5rem",
+              transition: "all 0.3s ease",
+              cursor: "default",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 12px 24px rgba(0, 0, 0, 0.1)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 4px 12px rgba(0, 0, 0, 0.05)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <p
+              style={{
+                color: "#a0aec0",
+                fontSize: "0.875rem",
+                fontWeight: "600",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Available
+            </p>
+            <p
+              style={{
+                fontSize: "2.25rem",
+                fontWeight: "700",
+                color: "#51cf66",
+                margin: 0,
+              }}
+            >
               {items.filter((i) => !i.isSold).length}
             </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-sm mb-2">Sold</p>
-            <p className="text-3xl font-bold text-red-600">
+
+          <div
+            style={{
+              background: "white",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+              padding: "1.5rem",
+              transition: "all 0.3s ease",
+              cursor: "default",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 12px 24px rgba(0, 0, 0, 0.1)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 4px 12px rgba(0, 0, 0, 0.05)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <p
+              style={{
+                color: "#a0aec0",
+                fontSize: "0.875rem",
+                fontWeight: "600",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Sold
+            </p>
+            <p
+              style={{
+                fontSize: "2.25rem",
+                fontWeight: "700",
+                color: "#ff6b6b",
+                margin: 0,
+              }}
+            >
               {items.filter((i) => i.isSold).length}
             </p>
           </div>
         </div>
 
         {/* Items Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">Items</h2>
+        <div
+          style={{
+            background: "white",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "1.5rem",
+              borderBottom: "1px solid #e2e8f0",
+              background: "#f8fafc",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: "700",
+                color: "#1a202c",
+                margin: 0,
+              }}
+            >
+              Items Inventory
+            </h2>
           </div>
 
           {loading ? (
-            <div className="p-6 text-center text-gray-600">
-              Loading items...
+            <div
+              style={{ padding: "3rem", textAlign: "center", color: "#a0aec0" }}
+            >
+              <p>Loading items...</p>
             </div>
           ) : items.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">
-              No items yet.{" "}
+            <div
+              style={{ padding: "3rem", textAlign: "center", color: "#a0aec0" }}
+            >
+              <p>No items yet.</p>
               <Link
                 href="/admin/items/new"
-                className="text-amber-400 hover:underline"
+                style={{
+                  color: "#667eea",
+                  textDecoration: "none",
+                  fontWeight: "600",
+                  marginTop: "1rem",
+                  display: "inline-block",
+                }}
               >
-                Add your first item
+                Add your first item →
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr
+                    style={{
+                      background: "#f8fafc",
+                      borderBottom: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <th
+                      style={{
+                        padding: "1rem 1.5rem",
+                        textAlign: "left",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        color: "#a0aec0",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Code
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th
+                      style={{
+                        padding: "1rem 1.5rem",
+                        textAlign: "left",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        color: "#a0aec0",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th
+                      style={{
+                        padding: "1rem 1.5rem",
+                        textAlign: "left",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        color: "#a0aec0",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Category
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th
+                      style={{
+                        padding: "1rem 1.5rem",
+                        textAlign: "left",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        color: "#a0aec0",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Price
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th
+                      style={{
+                        padding: "1rem 1.5rem",
+                        textAlign: "left",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        color: "#a0aec0",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th
+                      style={{
+                        padding: "1rem 1.5rem",
+                        textAlign: "left",
+                        fontSize: "0.75rem",
+                        fontWeight: "700",
+                        color: "#a0aec0",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {items.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-mono text-gray-900">
+                    <tr
+                      key={item.id}
+                      style={{
+                        borderBottom: "1px solid #e2e8f0",
+                        transition: "all 0.3s ease",
+                        background: "white",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = "#f8fafc";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = "white";
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: "1rem 1.5rem",
+                          fontSize: "0.875rem",
+                          color: "#2d3748",
+                          fontFamily: "monospace",
+                        }}
+                      >
                         {item.itemCode}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                      <td
+                        style={{
+                          padding: "1rem 1.5rem",
+                          fontSize: "0.875rem",
+                          color: "#2d3748",
+                          maxWidth: "250px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {item.name}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      <td
+                        style={{
+                          padding: "1rem 1.5rem",
+                          fontSize: "0.875rem",
+                          color: "#2d3748",
+                        }}
+                      >
                         {item.category}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-amber-400">
+                      <td
+                        style={{
+                          padding: "1rem 1.5rem",
+                          fontSize: "0.875rem",
+                          fontWeight: "700",
+                          color: "#667eea",
+                        }}
+                      >
                         {formatPrice(item.price)}
                       </td>
-                      <td className="px-6 py-4 text-sm">
+                      <td
+                        style={{ padding: "1rem 1.5rem", fontSize: "0.75rem" }}
+                      >
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            item.isSold
-                              ? "bg-red-100 text-red-800"
-                              : "bg-green-100 text-green-800"
-                          }`}
+                          style={{
+                            display: "inline-block",
+                            padding: "0.4rem 0.75rem",
+                            borderRadius: "6px",
+                            fontWeight: "700",
+                            background: item.isSold ? "#fee2e2" : "#dcfce7",
+                            color: item.isSold ? "#991b1b" : "#166534",
+                          }}
                         >
                           {item.isSold ? "Sold" : "Available"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm space-x-2 flex">
+                      <td
+                        style={{
+                          padding: "1rem 1.5rem",
+                          fontSize: "0.875rem",
+                          display: "flex",
+                          gap: "1rem",
+                        }}
+                      >
                         <Link
                           href={`/admin/items/${item.id}/edit`}
-                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          style={{
+                            color: "#667eea",
+                            textDecoration: "none",
+                            fontWeight: "600",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            transition: "color 0.3s ease",
+                            cursor: "pointer",
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.color = "#5a67d8";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.color = "#667eea";
+                          }}
                         >
                           <Edit2 size={16} />
                           Edit
@@ -224,14 +622,47 @@ export default function AdminDashboard() {
                         {!item.isSold && (
                           <button
                             onClick={() => setMarkSoldId(item.id)}
-                            className="text-orange-600 hover:text-orange-800"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#f97316",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              transition: "color 0.3s ease",
+                              padding: 0,
+                              fontSize: "0.875rem",
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.color = "#ea580c";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.color = "#f97316";
+                            }}
                           >
                             Mark Sold
                           </button>
                         )}
                         <button
                           onClick={() => setDeleteItemId(item.id)}
-                          className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#ff6b6b",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "color 0.3s ease",
+                            padding: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            fontSize: "0.875rem",
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.color = "#fa5252";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.color = "#ff6b6b";
+                          }}
                         >
                           <Trash2 size={16} />
                           Delete

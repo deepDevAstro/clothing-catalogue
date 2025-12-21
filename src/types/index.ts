@@ -7,6 +7,7 @@ export interface ClothingItem {
   category: "Men" | "Women" | "Kids" | "Accessories";
   price: number;
   imageUrl: string;
+  imageUrls?: string[];
   isSold: boolean;
   description?: string;
   createdAt: string;
@@ -32,6 +33,7 @@ export interface ItemFormData {
   price: number;
   description?: string;
   image?: File;
+  images?: File[];
 }
 
 export interface ApiResponse<T> {
