@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
-import { getAllItems, markAsSold, deleteItem } from "@/lib/items";
+import {
+  getAllItems,
+  markAsSold,
+  markAsAvailable,
+  deleteItem,
+} from "@/lib/items";
 import { ClothingItem } from "@/types";
 import { logoutUser } from "@/lib/auth";
 import { formatPrice } from "@/lib/helpers";
@@ -17,7 +22,7 @@ export default function AdminDashboard() {
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
-  const [markSoldId, setMarkSoldId] = useState<string | null>(null);
+  const [toggleSoldId, setToggleSoldId] = useState<string | null>(null);
 
   // Check authentication
   useEffect(() => {
@@ -60,24 +65,35 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleMarkAsSold = async () => {
-    if (!markSoldId) return;
+  const handleToggleSoldStatus = async () => {
+    if (!toggleSoldId) return;
 
     try {
-      await markAsSold(markSoldId);
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === markSoldId ? { ...item, isSold: true } : item
-        )
-      );
-      toast.success("Item marked as sold");
-      setMarkSoldId(null);
+      const item = items.find((i) => i.id === toggleSoldId);
+      if (!item) return;
+
+      if (item.isSold) {
+        // Mark as available
+        await markAsAvailable(toggleSoldId);
+        setItems((prev) =>
+          prev.map((i) => (i.id === toggleSoldId ? { ...i, isSold: false } : i))
+        );
+        toast.success("Item marked as available");
+      } else {
+        // Mark as sold
+        await markAsSold(toggleSoldId);
+        setItems((prev) =>
+          prev.map((i) => (i.id === toggleSoldId ? { ...i, isSold: true } : i))
+        );
+        toast.success("Item marked as sold");
+      }
+      setToggleSoldId(null);
     } catch (error) {
-      toast.error("Failed to mark item as sold");
+      toast.error("Failed to update item status");
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteConfirmed = async () => {
     if (!deleteItemId) return;
 
     try {
@@ -619,29 +635,31 @@ export default function AdminDashboard() {
                           <Edit2 size={16} />
                           Edit
                         </Link>
-                        {!item.isSold && (
-                          <button
-                            onClick={() => setMarkSoldId(item.id)}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              color: "#f97316",
-                              fontWeight: "600",
-                              cursor: "pointer",
-                              transition: "color 0.3s ease",
-                              padding: 0,
-                              fontSize: "0.875rem",
-                            }}
-                            onMouseOver={(e) => {
-                              e.currentTarget.style.color = "#ea580c";
-                            }}
-                            onMouseOut={(e) => {
-                              e.currentTarget.style.color = "#f97316";
-                            }}
-                          >
-                            Mark Sold
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setToggleSoldId(item.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: item.isSold ? "#51cf66" : "#f97316",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "color 0.3s ease",
+                            padding: 0,
+                            fontSize: "0.875rem",
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.color = item.isSold
+                              ? "#40c057"
+                              : "#ea580c";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.color = item.isSold
+                              ? "#51cf66"
+                              : "#f97316";
+                          }}
+                        >
+                          {item.isSold ? "Mark Available" : "Mark Sold"}
+                        </button>
                         <button
                           onClick={() => setDeleteItemId(item.id)}
                           style={{
@@ -685,18 +703,30 @@ export default function AdminDashboard() {
         confirmText="Delete"
         cancelText="Cancel"
         isDangerous
-        onConfirm={handleDelete}
+        onConfirm={handleDeleteConfirmed}
         onCancel={() => setDeleteItemId(null)}
       />
 
       <ConfirmDialog
-        isOpen={!!markSoldId}
-        title="Mark as Sold"
-        message="Mark this item as sold?"
-        confirmText="Mark as Sold"
+        isOpen={!!toggleSoldId}
+        title={
+          items.find((i) => i.id === toggleSoldId)?.isSold
+            ? "Mark as Available"
+            : "Mark as Sold"
+        }
+        message={
+          items.find((i) => i.id === toggleSoldId)?.isSold
+            ? "Mark this item as available?"
+            : "Mark this item as sold?"
+        }
+        confirmText={
+          items.find((i) => i.id === toggleSoldId)?.isSold
+            ? "Mark Available"
+            : "Mark Sold"
+        }
         cancelText="Cancel"
-        onConfirm={handleMarkAsSold}
-        onCancel={() => setMarkSoldId(null)}
+        onConfirm={handleToggleSoldStatus}
+        onCancel={() => setToggleSoldId(null)}
       />
     </div>
   );

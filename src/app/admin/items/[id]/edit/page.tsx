@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import AdminForm from "@/components/AdminForm";
-import { db } from "@/lib/firebase";
-import { updateItem } from "@/lib/items";
+import {
+  updateItem,
+  uploadImage,
+  uploadImages,
+  getItemById,
+} from "@/lib/items";
 import { ItemFormData, ClothingItem } from "@/types";
-import { doc, getDoc } from "firebase/firestore";
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -26,14 +29,9 @@ export default function EditItemPage() {
 
     const fetchItem = async () => {
       try {
-        const docRef = doc(db, "items", id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setItem({
-            id: docSnap.id,
-            ...docSnap.data(),
-          } as ClothingItem);
+        const fetchedItem = await getItemById(id);
+        if (fetchedItem) {
+          setItem(fetchedItem);
         } else {
           toast.error("Item not found");
           router.push("/admin/dashboard");
@@ -49,16 +47,82 @@ export default function EditItemPage() {
     fetchItem();
   }, [id, router]);
 
-  const handleSubmit = async (data: ItemFormData) => {
+  const handleSubmit = async (
+    data: ItemFormData,
+    imageBase64?: string,
+    imageBase64Array?: string[],
+    keptExistingImageUrls?: string[],
+    keptExistingImageUrl?: string
+  ) => {
     if (!id) return;
 
     try {
       setSubmitting(true);
-      await updateItem(id, data);
+
+      // Step 1: Handle primary image - new image takes priority
+      let primaryImageBase64: string;
+      if (imageBase64) {
+        // User uploaded a new primary image
+        toast.loading("Validating primary image...");
+        primaryImageBase64 = await uploadImage(imageBase64);
+      } else if (keptExistingImageUrl) {
+        // User kept the existing image (didn't delete it)
+        primaryImageBase64 = keptExistingImageUrl;
+      } else if (item?.imageUrl) {
+        // Fallback to original if no changes
+        primaryImageBase64 = item.imageUrl;
+      } else {
+        toast.error("Primary image is required");
+        setSubmitting(false);
+        return;
+      }
+
+      // Step 2: Handle additional images
+      let additionalImageBase64 =
+        keptExistingImageUrls || item?.imageUrls || [];
+
+      if (imageBase64Array && imageBase64Array.length > 0) {
+        toast.loading("Validating additional images...");
+        const newBase64Images = await uploadImages(imageBase64Array);
+        // Only append new images if they fit within document size limit (~700KB for safety)
+        const totalSize =
+          (additionalImageBase64?.reduce((sum, img) => sum + img.length, 0) ||
+            0) +
+          (primaryImageBase64?.length || 0) +
+          newBase64Images.reduce((sum, img) => sum + img.length, 0);
+
+        if (totalSize > 700000) {
+          toast.dismiss();
+          toast.error(
+            "Adding these images would exceed document size limit. Try removing some existing images first."
+          );
+          setSubmitting(false);
+          return;
+        }
+
+        additionalImageBase64 = [
+          ...(additionalImageBase64 || []),
+          ...newBase64Images,
+        ];
+      }
+
+      // Step 3: Update item with validated base64 images
+      toast.loading("Updating item...");
+      await updateItem(id, {
+        name: data.name,
+        category: data.category,
+        price: data.price,
+        description: data.description,
+        imageUrl: primaryImageBase64,
+        imageUrls: additionalImageBase64,
+      });
+
+      toast.dismiss();
       toast.success("Item updated successfully!");
       router.push("/admin/dashboard");
     } catch (error: any) {
       console.error("Error updating item:", error);
+      toast.dismiss();
       toast.error(error.message || "Failed to update item");
     } finally {
       setSubmitting(false);
@@ -67,8 +131,8 @@ export default function EditItemPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <p className="text-gray-300 text-lg drop-shadow-lg">Loading...</p>
+      <div className="admin-page flex items-center justify-center min-h-screen">
+        <p className="text-gray-400 text-lg">Loading...</p>
       </div>
     );
   }
@@ -78,32 +142,27 @@ export default function EditItemPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background elements */}
-      <div className="fixed top-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob pointer-events-none"></div>
-      <div className="fixed top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 pointer-events-none"></div>
-      <div className="fixed bottom-0 left-1/2 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000 pointer-events-none"></div>
-
+    <div className="admin-page">
       {/* Header */}
-      <header className="relative z-10 backdrop-blur-xl bg-white/10 border-b border-white/20 sticky top-0 z-40 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <header className="admin-header">
+        <div className="admin-header-content">
           <Link
             href="/admin/dashboard"
-            className="flex items-center gap-2 text-amber-300 hover:text-amber-200 transition-colors font-semibold drop-shadow-lg"
+            className="flex items-center gap-2 text-primary font-semibold text-sm hover:text-primary-dark transition-all"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
             Back to Dashboard
           </Link>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-xl p-6">
-          <h1 className="text-3xl font-bold text-white drop-shadow-lg mb-2">
-            Edit Item
-          </h1>
-          <p className="text-gray-300 mb-6 text-sm">{item.itemCode}</p>
+      <main className="admin-main">
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h1 className="admin-card-title">Edit Item</h1>
+            <p className="admin-card-subtitle">SKU: {item.itemCode}</p>
+          </div>
           <AdminForm
             onSubmit={handleSubmit}
             loading={submitting}
@@ -112,6 +171,9 @@ export default function EditItemPage() {
               category: item.category,
               price: item.price,
               description: item.description,
+              id: item.id,
+              imageUrl: item.imageUrl,
+              imageUrls: item.imageUrls || [],
             }}
             submitText="Update Item"
           />

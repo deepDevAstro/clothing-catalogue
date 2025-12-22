@@ -12,36 +12,50 @@ import toast from "react-hot-toast";
 export default function NewItemPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [formKey, setFormKey] = useState(0);
 
   const handleSubmit = async (
     data: ItemFormData,
-    imageFile?: File,
-    imageFiles?: File[]
+    imageBase64?: string,
+    imageBase64Array?: string[]
   ) => {
     try {
       setLoading(true);
 
-      if (!imageFile) {
+      if (!imageBase64) {
         toast.error("Please select a primary image");
         return;
       }
 
-      // Upload primary image
-      const imageUrl = await uploadImage(imageFile);
+      // Step 1: Validate primary image
+      toast.loading("Validating primary image...");
+      const primaryImageBase64 = await uploadImage(imageBase64);
 
-      // Upload additional images if provided
-      let additionalImageUrls: string[] = [];
-      if (imageFiles && imageFiles.length > 0) {
-        additionalImageUrls = await uploadImages(imageFiles);
+      // Step 2: Validate additional images
+      let additionalImageBase64: string[] = [];
+      if (imageBase64Array && imageBase64Array.length > 0) {
+        toast.loading("Validating additional images...");
+        additionalImageBase64 = await uploadImages(imageBase64Array);
       }
 
-      // Create item with all image URLs
-      await createItem(data, imageUrl, additionalImageUrls);
+      // Step 3: Create item with compressed base64 images
+      // Images are stored directly in Firestore with safety margin under 1MB
+      toast.loading("Creating item...");
+      await createItem(data, primaryImageBase64, additionalImageBase64);
 
+      toast.dismiss();
       toast.success("Item added successfully!");
-      router.push("/admin/dashboard");
+
+      // Reset form by changing key
+      setFormKey((prev) => prev + 1);
+
+      // Redirect after short delay
+      setTimeout(() => {
+        router.push("/admin/dashboard");
+      }, 1000);
     } catch (error: any) {
       console.error("Error creating item:", error);
+      toast.dismiss();
       toast.error(error.message || "Failed to add item");
     } finally {
       setLoading(false);
@@ -49,32 +63,28 @@ export default function NewItemPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background elements */}
-      <div className="fixed top-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob pointer-events-none"></div>
-      <div className="fixed top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 pointer-events-none"></div>
-      <div className="fixed bottom-0 left-1/2 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000 pointer-events-none"></div>
-
+    <div className="admin-page">
       {/* Header */}
-      <header className="relative z-10 backdrop-blur-xl bg-white/10 border-b border-white/20 sticky top-0 z-40 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <header className="admin-header">
+        <div className="admin-header-content">
           <Link
             href="/admin/dashboard"
-            className="flex items-center gap-2 text-amber-300 hover:text-amber-200 transition-colors font-semibold drop-shadow-lg"
+            className="flex items-center gap-2 text-primary font-semibold text-sm hover:text-primary-dark transition-all"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
             Back to Dashboard
           </Link>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-xl p-6">
-          <h1 className="text-3xl font-bold text-white drop-shadow-lg mb-6">
-            Add New Item
-          </h1>
+      <main className="admin-main">
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h1 className="admin-card-title">Add New Item</h1>
+          </div>
           <AdminForm
+            key={formKey}
             onSubmit={handleSubmit}
             loading={loading}
             submitText="Add Item"

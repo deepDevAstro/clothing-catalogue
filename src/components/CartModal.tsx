@@ -4,9 +4,74 @@ import { useCart } from "@/contexts/CartContext";
 import { X, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { formatPrice } from "@/lib/helpers";
+import toast from "react-hot-toast";
 
 export default function CartModal() {
   const { items, isOpen, closeCart, removeItem, updateQuantity } = useCart();
+
+  const handleCheckout = () => {
+    if (items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    // Get phone number from environment
+    const whatsappPhone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "";
+    if (!whatsappPhone) {
+      toast.error("WhatsApp number not configured");
+      return;
+    }
+
+    // Group items by itemCode and calculate quantities
+    const itemsByCode: Record<
+      string,
+      { name: string; quantity: number; price: number }
+    > = {};
+
+    items.forEach((item) => {
+      const code = item.itemCode || item.id;
+      if (!itemsByCode[code]) {
+        itemsByCode[code] = {
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        };
+      } else {
+        itemsByCode[code].quantity += item.quantity;
+      }
+    });
+
+    // Build formatted message
+    let message = "Hi! I'm interested in the following items:\n\n";
+    const totalPrice = items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    Object.entries(itemsByCode).forEach(([code, data]) => {
+      message += `📦 ${data.name}\n`;
+      message += `   ID: ${code}\n`;
+      message += `   Qty: ${data.quantity} × ₹${data.price.toLocaleString(
+        "en-IN"
+      )}\n`;
+      message += `   Subtotal: ₹${(data.quantity * data.price).toLocaleString(
+        "en-IN"
+      )}\n\n`;
+    });
+
+    message += `💰 Total: ₹${totalPrice.toLocaleString("en-IN")}\n\n`;
+    message +=
+      "Please confirm availability and provide delivery details. Thank you!";
+
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    const cleanPhone = whatsappPhone.replace(/\D/g, "");
+    const whatsappLink = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+
+    // Open WhatsApp
+    window.open(whatsappLink, "_blank");
+    toast.success("Opening WhatsApp...");
+  };
 
   if (!isOpen) return null;
 
@@ -254,6 +319,7 @@ export default function CartModal() {
               </span>
             </div>
             <button
+              onClick={handleCheckout}
               style={{
                 width: "100%",
                 padding: "0.75rem",

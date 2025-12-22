@@ -3,12 +3,18 @@
 import { useState } from "react";
 import { ItemFormData } from "@/types";
 import { Upload, AlertCircle } from "lucide-react";
+import {
+  validateAndCompressImage,
+  formatFileSize,
+} from "@/lib/imageCompression";
 
 interface AdminFormProps {
   onSubmit: (
     data: ItemFormData,
-    imageFile?: File,
-    imageFiles?: File[]
+    imageBase64?: string,
+    imageBase64Array?: string[],
+    keptExistingImageUrls?: string[],
+    keptExistingImageUrl?: string
   ) => Promise<void>;
   loading?: boolean;
   defaultValues?: Partial<ItemFormData> & {
@@ -33,10 +39,13 @@ export default function AdminForm({
     price: defaultValues?.price || 0,
     description: defaultValues?.description || "",
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageBase64, setImageBase64] = useState<string>("");
+  const [imageSizeInfo, setImageSizeInfo] = useState<{
+    original: number;
+    compressed: number;
+    ratio: string;
+  } | null>(null);
+  const [imageBase64Array, setImageBase64Array] = useState<string[]>([]);
   const [existingImageUrl, setExistingImageUrl] = useState<string>(
     defaultValues?.imageUrl || ""
   );
@@ -58,75 +67,71 @@ export default function AdminForm({
     setError("");
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (2MB limit)
-      if (file.size > 2 * 1024 * 1024) {
-        setError("Image size must be less than 2MB");
-        return;
-      }
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
       setError("");
+
+      try {
+        const compressedBase64 = await validateAndCompressImage(file);
+        setImageBase64(compressedBase64);
+
+        const originalSize = file.size;
+        const compressedSize = compressedBase64.length;
+        const ratio = Math.round(
+          ((originalSize - compressedSize) / originalSize) * 100
+        );
+
+        setImageSizeInfo({
+          original: originalSize,
+          compressed: compressedSize,
+          ratio: `${ratio}%`,
+        });
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to compress image"
+        );
+        setImageBase64("");
+        setImageSizeInfo(null);
+      }
     }
   };
 
-  const handleMultipleImagesChange = (
+  const handleMultipleImagesChange = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = Array.from(e.target.files || []);
 
     if (files.length === 0) {
-      setImageFiles([]);
-      setImagePreviews([]);
+      setImageBase64Array([]);
       return;
     }
 
-    // Check total files (max 5)
     if (files.length > 5) {
       setError("Maximum 5 images allowed");
       return;
     }
 
-    // Check each file size (2MB limit)
-    const validFiles: File[] = [];
-    const previews: string[] = [];
-    let hasError = false;
+    setError("");
+    const base64Array: string[] = [];
 
-    files.forEach((file) => {
-      if (file.size > 2 * 1024 * 1024) {
-        setError(`${file.name} is too large (max 2MB)`);
-        hasError = true;
-        return;
+    try {
+      for (const file of files) {
+        const compressedBase64 = await validateAndCompressImage(file);
+        base64Array.push(compressedBase64);
       }
-      validFiles.push(file);
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        previews.push(reader.result as string);
-        if (previews.length === validFiles.length) {
-          setImagePreviews(previews);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-
-    if (!hasError) {
-      setImageFiles(validFiles);
-      setError("");
+      setImageBase64Array(base64Array);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to compress images"
+      );
     }
   };
 
   const removeImage = (index: number) => {
-    const newFiles = imageFiles.filter((_, i) => i !== index);
-    const newPreviews = imagePreviews.filter((_, i) => i !== index);
-    setImageFiles(newFiles);
-    setImagePreviews(newPreviews);
+    const newBase64Array = imageBase64Array.filter((_, i) => i !== index);
+    setImageBase64Array(newBase64Array);
   };
 
   const removeExistingImage = (index: number) => {
@@ -147,14 +152,14 @@ export default function AdminForm({
       setError("Please fill all required fields");
       return;
     }
-    if (!defaultValues && !imageFile && imageFiles.length === 0) {
+    if (!defaultValues && !imageBase64 && imageBase64Array.length === 0) {
       setError("Please select at least one image");
       return;
     }
     if (
       defaultValues &&
-      !imageFile &&
-      imageFiles.length === 0 &&
+      !imageBase64 &&
+      imageBase64Array.length === 0 &&
       existingImageUrls.length === 0
     ) {
       setError("Please keep at least one image or upload new ones");
@@ -162,128 +167,140 @@ export default function AdminForm({
     }
     await onSubmit(
       formData,
-      imageFile || undefined,
-      imageFiles.length > 0 ? imageFiles : undefined
+      imageBase64 || undefined,
+      imageBase64Array.length > 0 ? imageBase64Array : undefined,
+      existingImageUrls.length > 0 ? existingImageUrls : undefined,
+      existingImageUrl || undefined
     );
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-8 bg-bg-secondary border border-border rounded-xl shadow-md p-8 dark:bg-bg-secondary"
-    >
+    <form onSubmit={handleSubmit} className="form-container">
       {/* Error Message */}
       {error && (
-        <div className="flex items-start gap-3 bg-error/5 border border-error/20 rounded-lg p-4">
-          <AlertCircle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-error">{error}</p>
+        <div className="form-error">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <p>{error}</p>
         </div>
       )}
 
-      {/* Item Name */}
-      <div>
-        <label
-          htmlFor="name"
-          className="block text-sm font-semibold text-text-primary mb-3"
-        >
-          Item Name <span className="text-error">*</span>
-        </label>
-        <input
-          type="text"
-          id="name"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          placeholder="Enter item name"
-          className="w-full px-4 py-3 bg-bg border border-border rounded-lg text-text-primary placeholder-text-tertiary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-          required
-        />
-      </div>
+      {/* ==========================================
+          SECTION 1: ITEM DETAILS
+          ========================================== */}
+      <div className="form-section">
+        <h3 className="form-section-title">Item Details</h3>
 
-      {/* Category */}
-      <div>
-        <label
-          htmlFor="category"
-          className="block text-sm font-semibold text-text-primary mb-3"
-        >
-          Category <span className="text-error">*</span>
-        </label>
-        <select
-          id="category"
-          name="category"
-          value={formData.category}
-          onChange={handleChange}
-          className="w-full px-4 py-3 bg-bg border border-border rounded-lg text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
-          required
-        >
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Price */}
-      <div>
-        <label
-          htmlFor="price"
-          className="block text-sm font-semibold text-text-primary mb-3"
-        >
-          Price (USD) <span className="text-error">*</span>
-        </label>
-        <div className="relative">
-          <span className="absolute left-4 top-3 text-text-secondary font-semibold">
-            $
-          </span>
+        {/* Item Name */}
+        <div className="form-group">
+          <label htmlFor="name" className="form-label form-label-required">
+            Item Name
+          </label>
           <input
-            type="number"
-            id="price"
-            name="price"
-            value={formData.price}
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
             onChange={handleChange}
-            placeholder="0.00"
-            step="0.01"
-            min="0"
-            className="w-full pl-8 pr-4 py-3 bg-bg border border-border rounded-lg text-text-primary placeholder-text-tertiary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            placeholder="e.g., Blue Denim Jacket"
+            className="form-input"
             required
+          />
+        </div>
+
+        {/* Category & Price Grid */}
+        <div className="form-group-row">
+          {/* Category */}
+          <div className="form-group">
+            <label
+              htmlFor="category"
+              className="form-label form-label-required"
+            >
+              Category
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              className="form-select"
+              required
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Price */}
+          <div className="form-group">
+            <label htmlFor="price" className="form-label form-label-required">
+              Price (₹)
+            </label>
+            <div style={{ position: "relative" }}>
+              <span
+                style={{
+                  position: "absolute",
+                  left: "var(--spacing-md)",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#6b7280",
+                  fontWeight: "600",
+                  pointerEvents: "none",
+                }}
+              >
+                ₹
+              </span>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+                className="form-input"
+                style={{ paddingLeft: "2.5rem" }}
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="form-group">
+          <label htmlFor="description" className="form-label">
+            Description
+          </label>
+          <p className="form-helper-text">
+            Optional - Add details about the item
+          </p>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            placeholder="Enter item description..."
+            className="form-textarea"
           />
         </div>
       </div>
 
-      {/* Description */}
-      <div>
-        <label
-          htmlFor="description"
-          className="block text-sm font-semibold text-text-primary mb-3"
-        >
-          Description{" "}
-          <span className="text-text-tertiary text-xs">(Optional)</span>
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          placeholder="Enter item description..."
-          rows={4}
-          className="w-full px-4 py-3 bg-bg border border-border rounded-lg text-text-primary placeholder-text-tertiary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
-        />
-      </div>
-
-      {/* Existing Images (when editing) */}
+      {/* ==========================================
+          SECTION 2: CURRENT IMAGES (EDIT ONLY)
+          ========================================== */}
       {defaultValues && (existingImageUrl || existingImageUrls.length > 0) && (
-        <div>
-          <label className="block text-sm font-semibold text-text-primary mb-3">
-            Current Images
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="form-section">
+          <h3 className="form-section-title">Current Images</h3>
+          <div className="image-gallery">
             {existingImageUrl && (
-              <div className="relative">
+              <div className="image-thumbnail-wrapper">
                 <img
                   src={existingImageUrl}
                   alt="Main product"
-                  className="w-full h-24 object-cover rounded-lg shadow-md border border-border"
+                  className="image-thumbnail"
                 />
                 <button
                   type="button"
@@ -291,18 +308,19 @@ export default function AdminForm({
                     e.preventDefault();
                     setExistingImageUrl("");
                   }}
-                  className="absolute -top-2 -right-2 bg-error text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-error/90 transition"
+                  className="image-remove-button"
+                  aria-label="Remove main image"
                 >
                   ✕
                 </button>
               </div>
             )}
             {existingImageUrls.map((url, index) => (
-              <div key={index} className="relative">
+              <div key={index} className="image-thumbnail-wrapper">
                 <img
                   src={url}
                   alt={`Product image ${index + 1}`}
-                  className="w-full h-24 object-cover rounded-lg shadow-md border border-border"
+                  className="image-thumbnail"
                 />
                 <button
                   type="button"
@@ -310,7 +328,8 @@ export default function AdminForm({
                     e.preventDefault();
                     removeExistingImage(index);
                   }}
-                  className="absolute -top-2 -right-2 bg-error text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-error/90 transition"
+                  className="image-remove-button"
+                  aria-label={`Remove image ${index + 1}`}
                 >
                   ✕
                 </button>
@@ -320,53 +339,59 @@ export default function AdminForm({
         </div>
       )}
 
-      {/* Image Upload */}
-      <div>
-        <label className="block text-sm font-semibold text-text-primary mb-3">
-          {defaultValues ? "Update Main Image" : "Item Image"}{" "}
-          <span className="text-error">{!defaultValues ? "*" : ""}</span>
-        </label>
-        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group bg-bg-tertiary/30">
+      {/* ==========================================
+          SECTION 3: PRIMARY IMAGE
+          ========================================== */}
+      <div className="form-section">
+        <h3 className="form-section-title">
+          {defaultValues ? "Update Main Image" : "Item Image"}
+        </h3>
+        <div className="image-upload-area">
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
             className="hidden"
             id="image-input"
-            required={!defaultValues && !imageFile && !existingImageUrl}
+            required={!defaultValues && !imageBase64 && !existingImageUrl}
           />
-          <label htmlFor="image-input" className="cursor-pointer block">
-            {imagePreview ? (
+          <label htmlFor="image-input" className="image-upload-label">
+            {imageBase64 ? (
               <div className="space-y-3">
-                <div className="relative inline-block">
+                <div className="image-preview-wrapper">
                   <img
-                    src={imagePreview}
+                    src={imageBase64}
                     alt="Preview"
-                    className="max-h-48 mx-auto rounded-lg shadow-md border border-border"
+                    className="image-preview"
                   />
-                  <div className="absolute inset-0 bg-primary/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <p className="text-primary font-semibold text-sm">
-                      Change image
+                </div>
+                <p className="image-upload-success">
+                  <span className="image-upload-success-dot" />
+                  Image compressed & selected
+                </p>
+                {imageSizeInfo && (
+                  <div className="image-compression-info">
+                    <p>Original: {formatFileSize(imageSizeInfo.original)}</p>
+                    <p>
+                      Compressed: {formatFileSize(imageSizeInfo.compressed)}
+                    </p>
+                    <p className="image-compression-ratio">
+                      Reduced by {imageSizeInfo.ratio}
                     </p>
                   </div>
-                </div>
-                <p className="text-sm text-success font-semibold flex items-center justify-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 bg-success rounded-full" />
-                  New image selected
-                </p>
-                <p className="text-xs text-text-tertiary">{imageFile?.name}</p>
+                )}
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="inline-block p-4 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                  <Upload className="text-primary w-8 h-8" />
+              <div className="image-upload-placeholder">
+                <div className="image-upload-icon-wrapper">
+                  <Upload className="image-upload-icon" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-text-primary">
+                  <p className="image-upload-title">
                     Click to upload or drag and drop
                   </p>
-                  <p className="text-xs text-text-secondary mt-1">
-                    PNG, JPG, WebP up to 2MB
+                  <p className="image-upload-subtitle">
+                    PNG, JPG, WebP - Auto-compressed to fit Firestore
                   </p>
                 </div>
               </div>
@@ -375,15 +400,13 @@ export default function AdminForm({
         </div>
       </div>
 
-      {/* Additional Images (optional) */}
-      <div>
-        <label className="block text-sm font-semibold text-text-primary mb-3">
-          Additional Images{" "}
-          <span className="text-text-tertiary text-xs">
-            (Optional - up to 5)
-          </span>
-        </label>
-        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group bg-bg-tertiary/30">
+      {/* ==========================================
+          SECTION 4: ADDITIONAL IMAGES
+          ========================================== */}
+      <div className="form-section">
+        <h3 className="form-section-title">Additional Images</h3>
+        <p className="form-helper-text">Optional - up to 5 images</p>
+        <div className="image-upload-area">
           <input
             type="file"
             accept="image/*"
@@ -392,19 +415,16 @@ export default function AdminForm({
             className="hidden"
             id="multiple-images-input"
           />
-          <label
-            htmlFor="multiple-images-input"
-            className="cursor-pointer block"
-          >
-            {imagePreviews.length > 0 ? (
+          <label htmlFor="multiple-images-input" className="image-upload-label">
+            {imageBase64Array.length > 0 ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative">
+                <div className="image-gallery">
+                  {imageBase64Array.map((base64, index) => (
+                    <div key={index} className="image-thumbnail-wrapper">
                       <img
-                        src={preview}
+                        src={base64}
                         alt={`Preview ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg shadow-md border border-border"
+                        className="image-thumbnail"
                       />
                       <button
                         type="button"
@@ -412,32 +432,30 @@ export default function AdminForm({
                           e.preventDefault();
                           removeImage(index);
                         }}
-                        className="absolute -top-2 -right-2 bg-error text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-error/90 transition"
+                        className="image-remove-button"
+                        aria-label={`Remove image ${index + 1}`}
                       >
                         ✕
                       </button>
                     </div>
                   ))}
                 </div>
-                <p className="text-sm text-success font-semibold flex items-center justify-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 bg-success rounded-full" />
-                  {imagePreviews.length} image
-                  {imagePreviews.length !== 1 ? "s" : ""} selected
-                </p>
-                <p className="text-xs text-text-tertiary">
-                  Click to add or replace images
+                <p className="image-upload-success">
+                  <span className="image-upload-success-dot" />
+                  {imageBase64Array.length} image
+                  {imageBase64Array.length !== 1 ? "s" : ""} selected
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="inline-block p-4 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                  <Upload className="text-primary w-8 h-8" />
+              <div className="image-upload-placeholder">
+                <div className="image-upload-icon-wrapper">
+                  <Upload className="image-upload-icon" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-text-primary">
+                  <p className="image-upload-title">
                     Click to upload or drag and drop
                   </p>
-                  <p className="text-xs text-text-secondary mt-1">
+                  <p className="image-upload-subtitle">
                     PNG, JPG, WebP up to 2MB each (max 5 images)
                   </p>
                 </div>
@@ -447,21 +465,25 @@ export default function AdminForm({
         </div>
       </div>
 
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary-dark hover:to-secondary disabled:from-text-tertiary disabled:to-text-secondary text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm disabled:cursor-not-allowed disabled:hover:-translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-            Processing...
-          </span>
-        ) : (
-          submitText
-        )}
-      </button>
+      {/* ==========================================
+          SECTION 5: ACTIONS
+          ========================================== */}
+      <div className="form-section">
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn btn-primary btn-block"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+              Processing...
+            </span>
+          ) : (
+            submitText
+          )}
+        </button>
+      </div>
     </form>
   );
 }

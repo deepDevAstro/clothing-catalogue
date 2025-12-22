@@ -2,65 +2,86 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * POST /api/items/upload
- * Upload image as base64 and store directly in Firestore
- * Much simpler and more reliable than Firebase Storage REST API
+ *
+ * Validate and store pre-compressed base64 image (for Firestore storage)
+ * NOTE: Compression happens on CLIENT side in AdminForm component
+ * This endpoint just validates the compressed data
+ *
+ * Request body (JSON):
+ *   - base64: Pre-compressed base64 data URL from client
+ *
+ * Response:
+ *   - base64: The validated base64 data URL (to store in Firestore)
+ *   - compressedSize: Size of base64 string in bytes
+ *   - compressedSizeFormatted: Human-readable size
  */
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
+    const body = await request.json();
+    const { base64 } = body;
 
-    if (!file) {
+    if (!base64) {
       return NextResponse.json(
-        { success: false, error: "No file provided" },
+        { success: false, error: "No base64 data provided" },
         { status: 400 }
       );
     }
 
-    // Validate file type
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) {
+    if (typeof base64 !== "string") {
+      return NextResponse.json(
+        { success: false, error: "base64 must be a string" },
+        { status: 400 }
+      );
+    }
+
+    if (!base64.startsWith("data:image/")) {
+      return NextResponse.json(
+        { success: false, error: "Invalid base64 format - must be data URL" },
+        { status: 400 }
+      );
+    }
+
+    // Check compressed size (should already be compressed on client)
+    const compressedSize = base64.length;
+    const maxCompressedSize = 900 * 1024; // 900KB safety margin
+
+    if (compressedSize > maxCompressedSize) {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid file type. Only JPEG, PNG, and WebP allowed.",
+          error: `Image data is ${formatFileSize(
+            compressedSize
+          )}, exceeds 900KB limit. Please use a smaller image.`,
         },
-        { status: 400 }
+        { status: 413 }
       );
     }
 
-    // Validate file size (2MB limit for base64 in Firestore)
-    const maxSize = 2 * 1024 * 1024; // 2MB
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { success: false, error: "File size exceeds 2MB limit" },
-        { status: 400 }
-      );
-    }
-
-    // Convert file to base64
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64 = buffer.toString("base64");
-    const dataUrl = `data:${file.type};base64,${base64}`;
-
-    // Return the data URL directly - this can be stored in Firestore or used directly in img tags
+    // Return the validated base64
     return NextResponse.json(
       {
         success: true,
         data: {
-          url: dataUrl,
-          size: file.size,
-          type: file.type,
+          base64,
+          compressedSize,
         },
       },
       { status: 200 }
     );
   } catch (error: any) {
-    console.error("Error processing file:", error);
+    console.error("Error validating image:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to process image" },
+      { success: false, error: error.message || "Failed to validate image" },
       { status: 500 }
     );
   }
+}
+
+// Helper function
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }

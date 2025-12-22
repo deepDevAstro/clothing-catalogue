@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import "@/styles/admin.css";
 import { Toaster } from "react-hot-toast";
 import { CartProvider } from "@/contexts/CartContext";
 
