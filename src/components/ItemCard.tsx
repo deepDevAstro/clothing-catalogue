@@ -3,19 +3,55 @@
 import { useState } from "react";
 import Image from "next/image";
 import { ClothingItem } from "@/types";
-import { formatPrice, getWhatsAppLink, getCategoryColor } from "@/lib/helpers";
-import { MessageCircle, Phone } from "lucide-react";
+import { formatPrice, getWhatsAppLink } from "@/lib/helpers";
+import { useCart } from "@/contexts/CartContext";
+import {
+  MessageCircle,
+  Phone,
+  Eye,
+  ShoppingCart,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 interface ItemCardProps {
   item: ClothingItem;
+  onImageClick?: () => void;
 }
 
-export default function ItemCard({ item }: ItemCardProps) {
+export default function ItemCard({ item, onImageClick }: ItemCardProps) {
+  const { addItem } = useCart();
   const [showPhone, setShowPhone] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const whatsappPhone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "";
 
-  const handleInterestedClick = () => {
+  // Use multiple images if available, otherwise fall back to single image
+  const images =
+    item.imageUrls && item.imageUrls.length > 0
+      ? item.imageUrls
+      : [item.imageUrl];
+  const currentImage = images[currentImageIndex];
+  const hasMultipleImages = images.length > 1;
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    addItem(item, 1);
+    toast.success(`${item.name} added to cart!`);
+  };
+
+  const handleInterestedClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (whatsappPhone) {
       const whatsappLink = getWhatsAppLink(
         item.itemCode,
@@ -30,89 +66,362 @@ export default function ItemCard({ item }: ItemCardProps) {
     }
   };
 
+  const handleViewClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onImageClick?.();
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden group animate-fade-in">
-      {/* Image Container */}
-      <div className="relative h-56 bg-gray-100 overflow-hidden">
+    <div className="article-card">
+      {/* Image Container - Clickable */}
+      <div
+        onClick={onImageClick}
+        style={{
+          position: "relative",
+          width: "100%",
+          paddingBottom: "100%",
+          cursor: "pointer",
+          overflow: "hidden",
+        }}
+      >
         <Image
-          src={item.imageUrl}
+          src={currentImage}
           alt={item.name}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className="article-image"
+          style={{ objectFit: "cover" }}
+          priority
         />
+
+        {/* Image Navigation Arrows (for multiple images) */}
+        {hasMultipleImages && (
+          <>
+            <button
+              onClick={handlePrevImage}
+              style={{
+                position: "absolute",
+                left: "0.5rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "rgba(0, 0, 0, 0.5)",
+                color: "white",
+                border: "none",
+                borderRadius: "50%",
+                width: "2.5rem",
+                height: "2.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                zIndex: 10,
+                transition: "background 0.3s ease",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "rgba(0, 0, 0, 0.7)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "rgba(0, 0, 0, 0.5)";
+              }}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={handleNextImage}
+              style={{
+                position: "absolute",
+                right: "0.5rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "rgba(0, 0, 0, 0.5)",
+                color: "white",
+                border: "none",
+                borderRadius: "50%",
+                width: "2.5rem",
+                height: "2.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                zIndex: 10,
+                transition: "background 0.3s ease",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "rgba(0, 0, 0, 0.7)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "rgba(0, 0, 0, 0.5)";
+              }}
+            >
+              <ChevronRight size={18} />
+            </button>
+
+            {/* Image Indicator */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "0.75rem",
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "rgba(0, 0, 0, 0.6)",
+                color: "white",
+                padding: "0.25rem 0.75rem",
+                borderRadius: "20px",
+                fontSize: "0.75rem",
+                fontWeight: "600",
+                zIndex: 10,
+              }}
+            >
+              {currentImageIndex + 1} / {images.length}
+            </div>
+          </>
+        )}
+
+        {/* Sold Out Overlay */}
         {item.isSold && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <span className="text-white text-lg font-bold">SOLD OUT</span>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <p
+                style={{
+                  color: "white",
+                  fontWeight: "bold",
+                  fontSize: "1.25rem",
+                }}
+              >
+                SOLD OUT
+              </p>
+            </div>
           </div>
         )}
-        {/* Category Badge */}
-        <span
-          className={`absolute top-3 right-3 px-3 py-1 text-xs font-semibold rounded-full ${getCategoryColor(
-            item.category
-          )}`}
-        >
-          {item.category}
-        </span>
+
+        {/* Status Badge */}
+        <div style={{ position: "absolute", top: "1rem", right: "1rem" }}>
+          {item.isSold ? (
+            <span
+              style={{
+                display: "inline-block",
+                padding: "0.5rem 1rem",
+                background: "#ff6b6b",
+                color: "white",
+                fontSize: "0.75rem",
+                fontWeight: "700",
+                borderRadius: "8px",
+              }}
+            >
+              Sold Out
+            </span>
+          ) : (
+            <span
+              style={{
+                display: "inline-block",
+                padding: "0.5rem 1rem",
+                background: "#51cf66",
+                color: "white",
+                fontSize: "0.75rem",
+                fontWeight: "700",
+                borderRadius: "8px",
+              }}
+            >
+              In Stock
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        {/* Item Code */}
-        <p className="text-xs text-gray-500 font-mono">{item.itemCode}</p>
-
-        {/* Name */}
-        <h3 className="font-semibold text-gray-900 line-clamp-2 hover:text-amber-400">
+      {/* Card Content */}
+      <div className="article-content">
+        {/* Product Name */}
+        <h3 className="article-title" style={{ color: "#1a202c" }}>
           {item.name}
         </h3>
 
-        {/* Description */}
-        {item.description && (
-          <p className="text-sm text-gray-600 line-clamp-2">
-            {item.description}
-          </p>
-        )}
-
         {/* Price */}
-        <p className="text-lg font-bold text-amber-400">
+        <p
+          style={{
+            fontSize: "1.5rem",
+            fontWeight: "700",
+            color: "#667eea",
+            margin: "0.5rem 0 1rem 0",
+          }}
+        >
           {formatPrice(item.price)}
         </p>
 
-        {/* CTA Buttons */}
-        <div className="pt-2 space-y-2">
-          {!item.isSold ? (
-            <>
+        {/* Description */}
+        {item.description && (
+          <p className="article-description">{item.description}</p>
+        )}
+
+        {/* Item Code */}
+        <p
+          style={{
+            fontSize: "0.75rem",
+            color: "#a0aec0",
+            fontFamily: "monospace",
+            marginBottom: "1rem",
+          }}
+        >
+          SKU: {item.itemCode}
+        </p>
+
+        {/* Buttons */}
+        {!item.isSold ? (
+          <div
+            style={{ display: "flex", gap: "0.5rem", flexDirection: "column" }}
+          >
+            <div style={{ display: "flex", gap: "0.75rem" }}>
               <button
                 onClick={handleInterestedClick}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg flex items-center justify-center gap-2 transition"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  padding: "0.75rem",
+                  background: "linear-gradient(45deg, #667eea, #764ba2)",
+                  color: "white",
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  boxShadow: "0 4px 15px rgba(102, 126, 234, 0.3)",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 8px 25px rgba(102, 126, 234, 0.4)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 15px rgba(102, 126, 234, 0.3)";
+                }}
               >
-                <MessageCircle size={18} />
-                Interested
+                <MessageCircle size={16} />
+                <span>Interested</span>
               </button>
-              {showPhone && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-xs text-gray-600 mb-1">Call us:</p>
-                  <a
-                    href={`tel:${whatsappPhone}`}
-                    className="text-blue-600 font-semibold hover:underline flex items-center gap-2"
-                  >
-                    <Phone size={16} />
-                    {whatsappPhone}
-                  </a>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Please mention item code: <strong>{item.itemCode}</strong>
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
+              <button
+                onClick={handleViewClick}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  padding: "0.75rem",
+                  background: "rgba(102, 126, 234, 0.1)",
+                  color: "#667eea",
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  border: "1px solid rgba(102, 126, 234, 0.2)",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background =
+                    "rgba(102, 126, 234, 0.15)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "rgba(102, 126, 234, 0.1)";
+                }}
+              >
+                <Eye size={16} />
+                <span>View</span>
+              </button>
+            </div>
             <button
-              disabled
-              className="w-full bg-gray-300 text-gray-600 font-semibold py-2 rounded-lg cursor-not-allowed"
+              onClick={handleAddToCart}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                padding: "0.75rem",
+                background: "linear-gradient(45deg, #25d366, #128c7e)",
+                color: "white",
+                fontSize: "0.9rem",
+                fontWeight: "600",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                boxShadow: "0 4px 15px rgba(37, 211, 102, 0.3)",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow =
+                  "0 8px 25px rgba(37, 211, 102, 0.4)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 15px rgba(37, 211, 102, 0.3)";
+              }}
             >
-              Sold Out
+              <ShoppingCart size={16} />
+              <span>Add to Cart</span>
             </button>
-          )}
-        </div>
+          </div>
+        ) : null}
+
+        {/* Phone fallback */}
+        {showPhone && (
+          <div
+            className="article-meta"
+            style={{
+              background: "rgba(102, 126, 234, 0.1)",
+              border: "1px solid rgba(102, 126, 234, 0.2)",
+              borderRadius: "8px",
+              padding: "1rem",
+              marginTop: "1rem",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "0.75rem",
+                color: "#667eea",
+                fontWeight: "600",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Contact:
+            </p>
+            <a
+              href={`https://wa.me/${whatsappPhone?.replace(/[^0-9]/g, "")}`}
+              style={{
+                color: "#667eea",
+                textDecoration: "none",
+                fontWeight: "600",
+                fontSize: "0.9rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "#5a67d8";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "#667eea";
+              }}
+            >
+              <MessageCircle size={14} />
+              {whatsappPhone}
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

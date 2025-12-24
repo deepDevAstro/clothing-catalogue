@@ -1,5 +1,7 @@
 import "@/styles/globals.css";
+import "@/styles/admin.css";
 import { Toaster } from "react-hot-toast";
+import { CartProvider } from "@/contexts/CartContext";
 
 export const metadata = {
   title: "Clothing Catalogue",
@@ -14,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-gray-50">
-        {children}
-        <Toaster position="top-right" />
+        <CartProvider>
+          {children}
+          <Toaster position="top-right" />
+        </CartProvider>
       </body>
     </html>
   );

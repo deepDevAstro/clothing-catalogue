@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useEffect, ReactNode } from "react";
 import { X } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -25,42 +25,51 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  // Handle ESC key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-sm w-full animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+    <div className="modal-overlay" onClick={onCancel}>
+      {/* Click on modal prevents closing */}
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        {/* Modal Header */}
+        <div className="modal-header">
+          <h2 className="modal-title">{title}</h2>
           <button
             onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700"
+            className="modal-close"
+            aria-label="Close modal"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          <p className="text-gray-600">{message}</p>
-        </div>
+        {/* Modal Body */}
+        <div className="modal-body">{message}</div>
 
-        {/* Actions */}
-        <div className="flex gap-3 p-6 border-t border-gray-200">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition"
-          >
+        {/* Modal Footer with Actions */}
+        <div className="modal-footer">
+          <button onClick={onCancel} className="btn btn-secondary btn-block">
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition ${
-              isDangerous
-                ? "bg-red-500 hover:bg-red-600"
-                : "bg-blue-500 hover:bg-blue-600"
-            }`}
+            className={`btn ${
+              isDangerous ? "btn-danger" : "btn-primary"
+            } btn-block`}
           >
             {confirmText}
           </button>
