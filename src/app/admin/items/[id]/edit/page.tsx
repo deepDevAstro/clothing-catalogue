@@ -5,12 +5,7 @@ import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import AdminForm from "@/components/AdminForm";
-import {
-  updateItem,
-  uploadImage,
-  uploadImages,
-  getItemById,
-} from "@/lib/items";
+import { updateItem, getItemById } from "@/lib/items";
 import { ItemFormData, ClothingItem } from "@/types";
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
@@ -49,72 +44,40 @@ export default function EditItemPage() {
 
   const handleSubmit = async (
     data: ItemFormData,
-    imageBase64?: string,
-    imageBase64Array?: string[],
-    keptExistingImageUrls?: string[],
-    keptExistingImageUrl?: string
+    primaryImageUrl?: string,
+    additionalImageUrls?: string[],
+    itemId?: string,
+    imagesToDelete?: string[]
   ) => {
     if (!id) return;
 
     try {
       setSubmitting(true);
 
-      // Step 1: Handle primary image - new image takes priority
-      let primaryImageBase64: string;
-      if (imageBase64) {
-        // User uploaded a new primary image
-        toast.loading("Validating primary image...");
-        primaryImageBase64 = await uploadImage(imageBase64);
-      } else if (keptExistingImageUrl) {
-        // User kept the existing image (didn't delete it)
-        primaryImageBase64 = keptExistingImageUrl;
-      } else if (item?.imageUrl) {
-        // Fallback to original if no changes
-        primaryImageBase64 = item.imageUrl;
-      } else {
+      // All images are now URLs from Firebase Storage (not base64)
+      // The AdminForm component handles uploading new files and deleting old ones
+      // We just need to update the Firestore document with the final URLs
+
+      // Step 1: Use provided URLs (newly uploaded + existing)
+      const finalPrimaryImageUrl = primaryImageUrl || item?.imageUrl;
+      const finalAdditionalImageUrls =
+        additionalImageUrls || item?.imageUrls || [];
+
+      if (!finalPrimaryImageUrl) {
         toast.error("Primary image is required");
         setSubmitting(false);
         return;
       }
 
-      // Step 2: Handle additional images
-      let additionalImageBase64 =
-        keptExistingImageUrls || item?.imageUrls || [];
-
-      if (imageBase64Array && imageBase64Array.length > 0) {
-        toast.loading("Validating additional images...");
-        const newBase64Images = await uploadImages(imageBase64Array);
-        // Only append new images if they fit within document size limit (~700KB for safety)
-        const totalSize =
-          (additionalImageBase64?.reduce((sum, img) => sum + img.length, 0) ||
-            0) +
-          (primaryImageBase64?.length || 0) +
-          newBase64Images.reduce((sum, img) => sum + img.length, 0);
-
-        if (totalSize > 700000) {
-          toast.dismiss();
-          toast.error(
-            "Adding these images would exceed document size limit. Try removing some existing images first."
-          );
-          setSubmitting(false);
-          return;
-        }
-
-        additionalImageBase64 = [
-          ...(additionalImageBase64 || []),
-          ...newBase64Images,
-        ];
-      }
-
-      // Step 3: Update item with validated base64 images
+      // Step 2: Update item with image URLs (NOT base64)
       toast.loading("Updating item...");
       await updateItem(id, {
         name: data.name,
         category: data.category,
         price: data.price,
         description: data.description,
-        imageUrl: primaryImageBase64,
-        imageUrls: additionalImageBase64,
+        imageUrl: finalPrimaryImageUrl,
+        imageUrls: finalAdditionalImageUrls,
       });
 
       toast.dismiss();

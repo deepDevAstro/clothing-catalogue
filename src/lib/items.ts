@@ -147,66 +147,31 @@ export async function searchItems(query: string): Promise<ClothingItem[]> {
 }
 
 /**
- * Validate and store pre-compressed image base64
- * NOTE: Compression must happen on CLIENT side before calling this
+ * DEPRECATED: uploadImage function
  *
- * @param base64 - Pre-compressed base64 data URL
- * @returns Promise with the validated base64 (for Firestore)
+ * This function is no longer used.
+ * Images are now uploaded directly to Firebase Storage using:
+ * - uploadImageToStorage() in firebaseStorage.ts
+ * - uploadMultipleImagesToStorage() in firebaseStorage.ts
+ *
+ * See FIRESTORE_ARCHITECTURE.md for details
  */
-export async function uploadImage(base64: string): Promise<string> {
-  try {
-    // Send to API for validation and size check
-    const response = await fetch("/api/items/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ base64 }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to validate image");
-    }
-
-    const data = await response.json();
-    return data.data.base64; // Return validated base64
-  } catch (error) {
-    console.error("Error validating image:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to validate image");
-  }
-}
 
 /**
- * Validate multiple pre-compressed images
- * NOTE: Compression must happen on CLIENT side before calling this
+ * Create new item with image URLs stored in Firestore
  *
- * @param base64Array - Array of pre-compressed base64 data URLs
- * @returns Promise with array of validated base64 strings
- */
-export async function uploadImages(base64Array: string[]): Promise<string[]> {
-  try {
-    const results = await Promise.all(
-      base64Array.map((base64) => uploadImage(base64))
-    );
-    return results;
-  } catch (error) {
-    console.error("Error validating images:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to validate images");
-  }
-}
-
-/**
- * Create new item with compressed images stored as base64 in Firestore
+ * IMPORTANT: Images must be uploaded to Firebase Storage FIRST
+ * This function stores ONLY metadata and image URLs in Firestore
+ * (NOT base64 strings)
  *
- * IMPORTANT: Images must be compressed FIRST using uploadImage/uploadImages
- * This function stores base64 data URLs directly in Firestore
+ * Workflow:
+ * 1. Upload images using uploadImageToStorage() → get URLs
+ * 2. Call this function with the image URLs
+ * 3. Firestore document created with URLs only
  *
  * @param data - Item form data
- * @param imageUrl - Primary image as base64 data URL
- * @param imageUrls - Additional images as base64 data URLs
+ * @param imageUrl - Primary image download URL (from Firebase Storage)
+ * @param imageUrls - Additional image download URLs (from Firebase Storage)
  * @returns Promise with created item
  */
 export async function createItem(
@@ -216,7 +181,7 @@ export async function createItem(
 ): Promise<ClothingItem> {
   try {
     if (!imageUrl) {
-      throw new Error("Primary image is required");
+      throw new Error("Primary image URL is required");
     }
 
     const itemCode = generateItemCode();
@@ -226,8 +191,8 @@ export async function createItem(
       category: data.category,
       price: data.price,
       description: data.description || "",
-      imageUrl, // Base64 data URL
-      imageUrls: imageUrls || [], // Array of base64 data URLs
+      imageUrl, // Download URL from Firebase Storage
+      imageUrls: imageUrls || [], // Array of download URLs from Firebase Storage
       isSold: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -252,15 +217,18 @@ export async function createItem(
 }
 
 /**
- * Update item with compressed images stored as base64 in Firestore
+ * Update item metadata and image URLs
  *
  * This handles:
- * - Updating item metadata (name, price, etc.)
- * - Adding new images (compressed first)
- * - Preserving existing image data URLs
+ * - Updating item metadata (name, price, description, category)
+ * - Updating primary image URL (from Firebase Storage)
+ * - Updating additional image URLs (from Firebase Storage)
+ *
+ * IMPORTANT: Images must be uploaded to Firebase Storage BEFORE calling this
+ * This function stores ONLY URLs (NOT base64 strings)
  *
  * @param id - Item ID
- * @param data - Partial item data to update
+ * @param data - Partial item data to update (including image URLs)
  * @returns Promise<void>
  */
 export async function updateItem(
@@ -282,8 +250,8 @@ export async function updateItem(
     if (data.price !== undefined) updateData.price = data.price;
     if (data.description !== undefined)
       updateData.description = data.description;
-    if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl; // Base64 data URL
-    if (data.imageUrls !== undefined) updateData.imageUrls = data.imageUrls; // Base64 data URLs
+    if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl; // Download URL from Firebase Storage
+    if (data.imageUrls !== undefined) updateData.imageUrls = data.imageUrls; // Download URLs from Firebase Storage
 
     await updateDoc(itemRef, updateData);
 

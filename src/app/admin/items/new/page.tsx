@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminForm from "@/components/AdminForm";
-import { createItem, uploadImage, uploadImages } from "@/lib/items";
+import { createItem } from "@/lib/items";
 import { ItemFormData } from "@/types";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -16,32 +16,21 @@ export default function NewItemPage() {
 
   const handleSubmit = async (
     data: ItemFormData,
-    imageBase64?: string,
-    imageBase64Array?: string[]
+    primaryImageUrl?: string,
+    additionalImageUrls?: string[]
   ) => {
     try {
       setLoading(true);
 
-      if (!imageBase64) {
+      if (!primaryImageUrl) {
         toast.error("Please select a primary image");
         return;
       }
 
-      // Step 1: Validate primary image
-      toast.loading("Validating primary image...");
-      const primaryImageBase64 = await uploadImage(imageBase64);
-
-      // Step 2: Validate additional images
-      let additionalImageBase64: string[] = [];
-      if (imageBase64Array && imageBase64Array.length > 0) {
-        toast.loading("Validating additional images...");
-        additionalImageBase64 = await uploadImages(imageBase64Array);
-      }
-
-      // Step 3: Create item with compressed base64 images
-      // Images are stored directly in Firestore with safety margin under 1MB
+      // Step 1: Create item with image URLs (from Firebase Storage)
+      // Images are stored as URLs in Firestore, NOT as base64
       toast.loading("Creating item...");
-      await createItem(data, primaryImageBase64, additionalImageBase64);
+      await createItem(data, primaryImageUrl, additionalImageUrls);
 
       toast.dismiss();
       toast.success("Item added successfully!");
