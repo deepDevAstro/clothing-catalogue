@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ItemFormData } from "@/types";
-import { Upload, AlertCircle } from "lucide-react";
+import { Upload, AlertCircle, X } from "lucide-react";
 import {
-  validateAndCompressImage,
-  formatFileSize,
-} from "@/lib/imageCompression";
+  uploadImageToCloudinary,
+  uploadMultipleImagesToCloudinary,
+  deleteImageFromCloudinary,
+} from "@/lib/cloudinary";
 
 interface AdminFormProps {
   onSubmit: (
     data: ItemFormData,
-    imageBase64?: string,
-    imageBase64Array?: string[],
+    primaryImageUrl?: string,
+    additionalImageUrls?: string[],
     keptExistingImageUrls?: string[],
     keptExistingImageUrl?: string
   ) => Promise<void>;
@@ -39,20 +40,24 @@ export default function AdminForm({
     price: defaultValues?.price || 0,
     description: defaultValues?.description || "",
   });
-  const [imageBase64, setImageBase64] = useState<string>("");
-  const [imageSizeInfo, setImageSizeInfo] = useState<{
-    original: number;
-    compressed: number;
-    ratio: string;
-  } | null>(null);
-  const [imageBase64Array, setImageBase64Array] = useState<string[]>([]);
-  const [existingImageUrl, setExistingImageUrl] = useState<string>(
+
+  const [primaryImageUrl, setPrimaryImageUrl] = useState<string>(
     defaultValues?.imageUrl || ""
   );
-  const [existingImageUrls, setExistingImageUrls] = useState<string[]>(
+  const [additionalImageUrls, setAdditionalImageUrls] = useState<string[]>([]);
+  const [keptExistingImageUrl, setKeptExistingImageUrl] = useState<string>(
+    defaultValues?.imageUrl || ""
+  );
+  const [keptExistingImageUrls, setKeptExistingImageUrls] = useState<string[]>(
     defaultValues?.imageUrls || []
   );
+
+  const [uploading, setUploading] = useState(false);
+  const [uploadingPrimary, setUploadingPrimary] = useState(false);
   const [error, setError] = useState<string>("");
+
+  const primaryImageInputRef = useRef<HTMLInputElement>(null);
+  const additionalImagesInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -67,81 +72,102 @@ export default function AdminForm({
     setError("");
   };
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePrimaryImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
       setError("");
+      setUploadingPrimary(true);
 
       try {
-        const compressedBase64 = await validateAndCompressImage(file);
-        setImageBase64(compressedBase64);
+        // Validate file
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Please select a valid image file");
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error("Image must be smaller than 5MB");
+        }
 
-        const originalSize = file.size;
-        const compressedSize = compressedBase64.length;
-        const ratio = Math.round(
-          ((originalSize - compressedSize) / originalSize) * 100
+        // Upload to Cloudinary
+        const url = await uploadImageToCloudinary(
+          file,
+          defaultValues?.id || "new"
         );
-
-        setImageSizeInfo({
-          original: originalSize,
-          compressed: compressedSize,
-          ratio: `${ratio}%`,
-        });
+        setPrimaryImageUrl(url);
+        setKeptExistingImageUrl(url);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to compress image"
+          err instanceof Error ? err.message : "Failed to upload primary image"
         );
-        setImageBase64("");
-        setImageSizeInfo(null);
+        setPrimaryImageUrl("");
+        setKeptExistingImageUrl("");
+      } finally {
+        setUploadingPrimary(false);
+        // Reset file input
+        if (primaryImageInputRef.current) {
+          primaryImageInputRef.current.value = "";
+        }
       }
     }
   };
 
-  const handleMultipleImagesChange = async (
+  const handleAdditionalImagesChange = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = Array.from(e.target.files || []);
 
     if (files.length === 0) {
-      setImageBase64Array([]);
+      setAdditionalImageUrls([]);
       return;
     }
 
     if (files.length > 5) {
-      setError("Maximum 5 images allowed");
+      setError("Maximum 5 additional images allowed");
       return;
     }
 
     setError("");
-    const base64Array: string[] = [];
+    setUploading(true);
 
     try {
+      // Validate all files
       for (const file of files) {
-        const compressedBase64 = await validateAndCompressImage(file);
-        base64Array.push(compressedBase64);
+        if (!file.type.startsWith("image/")) {
+          throw new Error("All files must be valid image files");
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error("Each image must be smaller than 5MB");
+        }
       }
 
-      setImageBase64Array(base64Array);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to compress images"
+      // Upload all to Cloudinary in parallel
+      const urls = await uploadMultipleImagesToCloudinary(
+        files,
+        defaultValues?.id || "new"
       );
+      // Only set newly uploaded images, keep existing images separate
+      setAdditionalImageUrls(urls);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload images");
+      setAdditionalImageUrls([]);
+    } finally {
+      setUploading(false);
+      // Reset file input
+      if (additionalImagesInputRef.current) {
+        additionalImagesInputRef.current.value = "";
+      }
     }
   };
 
-  const removeImage = (index: number) => {
-    const newBase64Array = imageBase64Array.filter((_, i) => i !== index);
-    setImageBase64Array(newBase64Array);
+  const removeAdditionalImage = (index: number) => {
+    const newUrls = additionalImageUrls.filter((_, i) => i !== index);
+    setAdditionalImageUrls(newUrls);
   };
 
-  const removeExistingImage = (index: number) => {
-    const newUrls = existingImageUrls.filter((_, i) => i !== index);
-    setExistingImageUrls(newUrls);
-    if (index === 0 && newUrls.length > 0) {
-      setExistingImageUrl(newUrls[0]);
-    } else if (newUrls.length === 0) {
-      setExistingImageUrl("");
-    }
+  const removePrimaryImage = () => {
+    setPrimaryImageUrl("");
+    setKeptExistingImageUrl("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,25 +178,27 @@ export default function AdminForm({
       setError("Please fill all required fields");
       return;
     }
-    if (!defaultValues && !imageBase64 && imageBase64Array.length === 0) {
-      setError("Please select at least one image");
+
+    if (!defaultValues && !primaryImageUrl) {
+      setError("Please select a primary image");
       return;
     }
+
     if (
       defaultValues &&
-      !imageBase64 &&
-      imageBase64Array.length === 0 &&
-      existingImageUrls.length === 0
+      !primaryImageUrl &&
+      keptExistingImageUrl.length === 0
     ) {
-      setError("Please keep at least one image or upload new ones");
+      setError("Please keep or upload a primary image");
       return;
     }
+
     await onSubmit(
       formData,
-      imageBase64 || undefined,
-      imageBase64Array.length > 0 ? imageBase64Array : undefined,
-      existingImageUrls.length > 0 ? existingImageUrls : undefined,
-      existingImageUrl || undefined
+      primaryImageUrl || undefined,
+      additionalImageUrls.length > 0 ? additionalImageUrls : undefined,
+      keptExistingImageUrls.length > 0 ? keptExistingImageUrls : undefined,
+      keptExistingImageUrl || undefined
     );
   };
 
@@ -289,161 +317,177 @@ export default function AdminForm({
       </div>
 
       {/* ==========================================
-          SECTION 2: CURRENT IMAGES (EDIT ONLY)
-          ========================================== */}
-      {defaultValues && (existingImageUrl || existingImageUrls.length > 0) && (
-        <div className="form-section">
-          <h3 className="form-section-title">Current Images</h3>
-          <div className="image-gallery">
-            {existingImageUrl && (
-              <div className="image-thumbnail-wrapper">
-                <img
-                  src={existingImageUrl}
-                  alt="Main product"
-                  className="image-thumbnail"
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setExistingImageUrl("");
-                  }}
-                  className="image-remove-button"
-                  aria-label="Remove main image"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-            {existingImageUrls.map((url, index) => (
-              <div key={index} className="image-thumbnail-wrapper">
-                <img
-                  src={url}
-                  alt={`Product image ${index + 1}`}
-                  className="image-thumbnail"
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    removeExistingImage(index);
-                  }}
-                  className="image-remove-button"
-                  aria-label={`Remove image ${index + 1}`}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ==========================================
-          SECTION 3: PRIMARY IMAGE
+          SECTION 2: PRIMARY IMAGE
           ========================================== */}
       <div className="form-section">
         <h3 className="form-section-title">
-          {defaultValues ? "Update Main Image" : "Item Image"}
+          {defaultValues ? "Update Main Image" : "Main Image"}
         </h3>
-        <div className="image-upload-area">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-            id="image-input"
-            required={!defaultValues && !imageBase64 && !existingImageUrl}
-          />
-          <label htmlFor="image-input" className="image-upload-label">
-            {imageBase64 ? (
-              <div className="space-y-3">
-                <div className="image-preview-wrapper">
-                  <img
-                    src={imageBase64}
-                    alt="Preview"
-                    className="image-preview"
-                  />
+
+        {primaryImageUrl ? (
+          <div className="space-y-3">
+            <div className="image-preview-wrapper">
+              <img
+                src={primaryImageUrl}
+                alt="Primary product"
+                className="image-preview"
+              />
+            </div>
+            <p className="image-upload-success">
+              <span className="image-upload-success-dot" />
+              Primary image uploaded to Cloudinary
+            </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                removePrimaryImage();
+              }}
+              className="btn btn-secondary"
+            >
+              <X className="w-4 h-4" />
+              Change Primary Image
+            </button>
+          </div>
+        ) : (
+          <div className="image-upload-area">
+            <input
+              ref={primaryImageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePrimaryImageChange}
+              className="hidden"
+              id="primary-image-input"
+              disabled={uploadingPrimary}
+            />
+            <label
+              htmlFor="primary-image-input"
+              className={`image-upload-label ${
+                uploadingPrimary ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {uploadingPrimary ? (
+                <div className="space-y-3">
+                  <div className="flex justify-center">
+                    <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                  </div>
+                  <p className="text-center text-gray-600">
+                    Uploading to Cloudinary...
+                  </p>
                 </div>
-                <p className="image-upload-success">
-                  <span className="image-upload-success-dot" />
-                  Image compressed & selected
-                </p>
-                {imageSizeInfo && (
-                  <div className="image-compression-info">
-                    <p>Original: {formatFileSize(imageSizeInfo.original)}</p>
-                    <p>
-                      Compressed: {formatFileSize(imageSizeInfo.compressed)}
+              ) : (
+                <div className="image-upload-placeholder">
+                  <div className="image-upload-icon-wrapper">
+                    <Upload className="image-upload-icon" />
+                  </div>
+                  <div>
+                    <p className="image-upload-title">
+                      Click to upload or drag and drop
                     </p>
-                    <p className="image-compression-ratio">
-                      Reduced by {imageSizeInfo.ratio}
+                    <p className="image-upload-subtitle">
+                      PNG, JPG, WebP up to 5MB - Cloudinary optimizes
+                      automatically
                     </p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="image-upload-placeholder">
-                <div className="image-upload-icon-wrapper">
-                  <Upload className="image-upload-icon" />
                 </div>
-                <div>
-                  <p className="image-upload-title">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="image-upload-subtitle">
-                    PNG, JPG, WebP - Auto-compressed to fit Firestore
-                  </p>
-                </div>
-              </div>
-            )}
-          </label>
-        </div>
+              )}
+            </label>
+          </div>
+        )}
       </div>
 
       {/* ==========================================
-          SECTION 4: ADDITIONAL IMAGES
+          SECTION 3: ADDITIONAL IMAGES
           ========================================== */}
       <div className="form-section">
         <h3 className="form-section-title">Additional Images</h3>
         <p className="form-helper-text">Optional - up to 5 images</p>
+
+        {(keptExistingImageUrls.length > 0 ||
+          additionalImageUrls.length > 0) && (
+          <div className="space-y-3 mb-6">
+            <div className="image-gallery">
+              {/* Show kept existing images first */}
+              {keptExistingImageUrls.map((url, index) => (
+                <div key={`kept-${index}`} className="image-thumbnail-wrapper">
+                  <img
+                    src={url}
+                    alt={`Existing image ${index + 1}`}
+                    className="image-thumbnail"
+                  />
+                  <div className="image-badge">Existing</div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const newUrls = keptExistingImageUrls.filter(
+                        (_, i) => i !== index
+                      );
+                      setKeptExistingImageUrls(newUrls);
+                    }}
+                    className="image-remove-button"
+                    aria-label={`Remove image ${index + 1}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              {/* Show newly uploaded images */}
+              {additionalImageUrls.map((url, index) => (
+                <div key={`new-${index}`} className="image-thumbnail-wrapper">
+                  <img
+                    src={url}
+                    alt={`Additional image ${index + 1}`}
+                    className="image-thumbnail"
+                  />
+                  <div className="image-badge">New</div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      removeAdditionalImage(index);
+                    }}
+                    className="image-remove-button"
+                    aria-label={`Remove image ${index + 1}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="image-upload-success">
+              <span className="image-upload-success-dot" />
+              {keptExistingImageUrls.length} existing +{" "}
+              {additionalImageUrls.length} new ={" "}
+              {keptExistingImageUrls.length + additionalImageUrls.length} total
+            </p>
+          </div>
+        )}
+
         <div className="image-upload-area">
           <input
+            ref={additionalImagesInputRef}
             type="file"
             accept="image/*"
             multiple
-            onChange={handleMultipleImagesChange}
+            onChange={handleAdditionalImagesChange}
             className="hidden"
-            id="multiple-images-input"
+            id="additional-images-input"
+            disabled={uploading}
           />
-          <label htmlFor="multiple-images-input" className="image-upload-label">
-            {imageBase64Array.length > 0 ? (
+          <label
+            htmlFor="additional-images-input"
+            className={`image-upload-label ${
+              uploading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            {uploading ? (
               <div className="space-y-3">
-                <div className="image-gallery">
-                  {imageBase64Array.map((base64, index) => (
-                    <div key={index} className="image-thumbnail-wrapper">
-                      <img
-                        src={base64}
-                        alt={`Preview ${index + 1}`}
-                        className="image-thumbnail"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          removeImage(index);
-                        }}
-                        className="image-remove-button"
-                        aria-label={`Remove image ${index + 1}`}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
+                <div className="flex justify-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                 </div>
-                <p className="image-upload-success">
-                  <span className="image-upload-success-dot" />
-                  {imageBase64Array.length} image
-                  {imageBase64Array.length !== 1 ? "s" : ""} selected
+                <p className="text-center text-gray-600">
+                  Uploading images to Cloudinary...
                 </p>
               </div>
             ) : (
@@ -456,7 +500,7 @@ export default function AdminForm({
                     Click to upload or drag and drop
                   </p>
                   <p className="image-upload-subtitle">
-                    PNG, JPG, WebP up to 2MB each (max 5 images)
+                    PNG, JPG, WebP up to 5MB each (max 5 images)
                   </p>
                 </div>
               </div>
@@ -466,18 +510,23 @@ export default function AdminForm({
       </div>
 
       {/* ==========================================
-          SECTION 5: ACTIONS
+          SECTION 4: ACTIONS
           ========================================== */}
       <div className="form-section">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || uploading || uploadingPrimary}
           className="btn btn-primary btn-block"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
               <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
               Processing...
+            </span>
+          ) : uploading || uploadingPrimary ? (
+            <span className="flex items-center justify-center gap-2">
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+              Uploading Images...
             </span>
           ) : (
             submitText

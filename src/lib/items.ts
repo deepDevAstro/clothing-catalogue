@@ -337,10 +337,44 @@ export async function markAsAvailable(id: string): Promise<void> {
 }
 
 /**
- * Delete item
+ * Delete item and its images from Cloudinary
  */
 export async function deleteItem(id: string): Promise<void> {
   try {
+    // First, fetch the item to get image URLs
+    const itemSnapshot = await getDoc(doc(db, "items", id));
+    if (itemSnapshot.exists()) {
+      const item = itemSnapshot.data() as ClothingItem;
+
+      // Delete images from Cloudinary if they exist
+      const imagesToDelete: string[] = [];
+
+      if (item.imageUrl) {
+        imagesToDelete.push(item.imageUrl);
+      }
+
+      if (item.imageUrls && Array.isArray(item.imageUrls)) {
+        imagesToDelete.push(...item.imageUrls);
+      }
+
+      // Delete all images from Cloudinary
+      if (imagesToDelete.length > 0) {
+        try {
+          const { deleteMultipleImagesFromCloudinary } = await import(
+            "./cloudinary"
+          );
+          await deleteMultipleImagesFromCloudinary(imagesToDelete);
+        } catch (cloudinaryError) {
+          console.warn(
+            "Warning: Failed to delete images from Cloudinary, but continuing with item deletion:",
+            cloudinaryError
+          );
+          // Don't throw - allow item deletion to proceed even if Cloudinary cleanup fails
+        }
+      }
+    }
+
+    // Delete the item document from Firestore
     await deleteDoc(doc(db, "items", id));
 
     // Invalidate caches after deletion

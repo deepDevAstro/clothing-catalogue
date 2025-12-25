@@ -487,6 +487,19 @@
   transform: scale(1.1);
 }
 
+.image-badge {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+}
+
 /* Image Upload & Preview Styles */
 
 .image-upload-label {

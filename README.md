@@ -8,11 +8,14 @@ Production-ready full-stack clothing management system with public browsing and 
 
 Start here based on your needs:
 
-| Document             | Purpose                                                       |
-| -------------------- | ------------------------------------------------------------- |
-| **DOCUMENTATION.md** | Complete guide (setup, features, deployment, troubleshooting) |
-| **QUICKSTART.md**    | Fast 5-minute setup                                           |
-| **DEPLOYMENT.md**    | Deployment instructions (Vercel/Firebase)                     |
+| Document                      | Purpose                                                     |
+| ----------------------------- | ----------------------------------------------------------- |
+| **CLOUDINARY_README.md**      | 🔥 **MUST READ FIRST** - Configure Cloudinary image storage |
+| **CLOUDINARY_SETUP.md**       | Detailed Cloudinary setup with step-by-step guide           |
+| **CLOUDINARY_AUTO_DELETE.md** | Auto-deletion of images when items are deleted              |
+| **CLOUDINARY_QUICK_START.md** | Quick reference for Cloudinary setup and troubleshooting    |
+| **DEPLOYMENT.md**             | Production deployment (Vercel, Firebase, environment setup) |
+| **TESTING_GUIDE.md**          | Testing features locally and in production                  |
 
 ## ✨ Features
 
@@ -38,37 +41,43 @@ Start here based on your needs:
 
 ## 🛠️ Tech Stack
 
-| Layer      | Technology                                     |
-| ---------- | ---------------------------------------------- |
-| Frontend   | React 18 + TypeScript + Next.js 14             |
-| Styling    | Tailwind CSS + Lucide Icons                    |
-| Backend    | Next.js API Routes                             |
-| Database   | Firebase Firestore (free tier)                 |
-| Storage    | Compressed Base64 (no Firebase Storage needed) |
-| Auth       | Firebase Authentication                        |
-| Deployment | Vercel (recommended)                           |
+| Layer      | Technology                                       |
+| ---------- | ------------------------------------------------ |
+| Frontend   | React 18 + TypeScript + Next.js 14               |
+| Styling    | Tailwind CSS + Lucide Icons                      |
+| Backend    | Next.js API Routes                               |
+| Database   | Firebase Firestore (free tier)                   |
+| Storage    | **Cloudinary** (25GB/month free, auto-optimized) |
+| Auth       | Firebase Authentication                          |
+| Deployment | Vercel (recommended)                             |
 
 ## 🚀 Quick Start
 
-### 5-Minute Setup
+### ⚠️ IMPORTANT: Configure Cloudinary First!
+
+Before running the app, you **MUST** configure Cloudinary:
+
+**See [CLOUDINARY_README.md](./CLOUDINARY_README.md)** (5-minute setup)
+
+### Installation & Setup
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Configure environment
+# 2. Configure environment (see SETUP.md for details)
 cp .env.example .env.local
-# Add Firebase credentials from console.firebase.google.com
+# Add Firebase & Cloudinary credentials
 
 # 3. Start development
 npm run dev
-# Open http://localhost:3001
+# Open http://localhost:3000
 
 # 4. Admin login
-# URL: http://localhost:3001/admin/login
+# URL: http://localhost:3000/admin/login
 ```
 
-**Complete setup guide:** See [DOCUMENTATION.md](DOCUMENTATION.md#setup)
+**Complete setup guide:** See [SETUP.md](./SETUP.md) (one-time configuration)
 
 ## 📁 Project Structure
 
