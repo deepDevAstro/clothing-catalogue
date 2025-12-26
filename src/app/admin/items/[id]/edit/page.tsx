@@ -47,7 +47,8 @@ export default function EditItemPage() {
     primaryImageUrl?: string,
     additionalImageUrls?: string[],
     keptExistingImageUrls?: string[],
-    keptExistingImageUrl?: string
+    keptExistingImageUrl?: string,
+    itemCode?: string
   ) => {
     if (!id) return;
 
@@ -139,6 +140,7 @@ export default function EditItemPage() {
               price: item.price,
               description: item.description,
               id: item.id,
+              itemCode: item.itemCode,
               imageUrl: item.imageUrl,
               imageUrls: item.imageUrls || [],
             }}

@@ -17,7 +17,10 @@ export default function NewItemPage() {
   const handleSubmit = async (
     data: ItemFormData,
     primaryImageUrl?: string,
-    additionalImageUrls?: string[]
+    additionalImageUrls?: string[],
+    keptExistingImageUrls?: string[],
+    keptExistingImageUrl?: string,
+    folderId?: string
   ) => {
     try {
       setLoading(true);
@@ -28,9 +31,9 @@ export default function NewItemPage() {
       }
 
       // Images are already uploaded to Cloudinary by AdminForm
-      // Just create the item with the URLs
+      // Just create the item with the URLs and folderId
       toast.loading("Creating item...");
-      await createItem(data, primaryImageUrl, additionalImageUrls);
+      await createItem(data, primaryImageUrl, additionalImageUrls, folderId);
 
       toast.dismiss();
       toast.success("Item added successfully!");

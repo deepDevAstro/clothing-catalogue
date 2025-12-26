@@ -18,7 +18,7 @@ import { getCache } from "./cache";
 /**
  * Generate unique item code
  */
-function generateItemCode(): string {
+export function generateItemCode(): string {
   const timestamp = Date.now().toString(36).toUpperCase();
   const random = Math.random().toString(36).substring(2, 7).toUpperCase();
   return `ITEM-${timestamp}${random}`.substring(0, 12);
@@ -212,22 +212,23 @@ export async function uploadImages(base64Array: string[]): Promise<string[]> {
 export async function createItem(
   data: ItemFormData,
   imageUrl: string,
-  imageUrls?: string[]
+  imageUrls?: string[],
+  itemCode?: string
 ): Promise<ClothingItem> {
   try {
     if (!imageUrl) {
       throw new Error("Primary image is required");
     }
 
-    const itemCode = generateItemCode();
+    const finalItemCode = itemCode || generateItemCode();
     const newItem = {
-      itemCode,
+      itemCode: finalItemCode,
       name: data.name,
       category: data.category,
       price: data.price,
       description: data.description || "",
-      imageUrl, // Base64 data URL
-      imageUrls: imageUrls || [], // Array of base64 data URLs
+      imageUrl, // Cloudinary URL
+      imageUrls: imageUrls || [], // Array of Cloudinary URLs
       isSold: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),

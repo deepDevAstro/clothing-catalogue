@@ -11,14 +11,13 @@ const CLOUDINARY_UPLOAD_PRESET =
 
 /**
  * Extract public ID from Cloudinary URL
- * URL format: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{public_id}.{format}
+ * URL format: https://res.cloudinary.com/{cloud_name}/image/upload/[transformations/]v{version}/{public_id}[.{format}]
+ * Example: https://res.cloudinary.com/dxx/image/upload/q_auto,f_auto/v1766733859/clothing-catalogue/ITEM-ABC/image
  */
 function extractPublicIdFromUrl(url: string): string | null {
   try {
-    // Match Cloudinary URL pattern
-    const match = url.match(
-      /https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/
-    );
+    // Match from version number onwards: /v{digits}/{public_id}
+    const match = url.match(/\/v\d+\/(.+?)(?:\.\w+)?$/);
     return match ? match[1] : null;
   } catch (error) {
     console.error("Error extracting public ID from URL:", error);

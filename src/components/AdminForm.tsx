@@ -3,11 +3,13 @@
 import { useState, useRef } from "react";
 import { ItemFormData } from "@/types";
 import { Upload, AlertCircle, X } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   uploadImageToCloudinary,
   uploadMultipleImagesToCloudinary,
   deleteImageFromCloudinary,
 } from "@/lib/cloudinary";
+import { generateItemCode } from "@/lib/items";
 
 interface AdminFormProps {
   onSubmit: (
@@ -15,11 +17,13 @@ interface AdminFormProps {
     primaryImageUrl?: string,
     additionalImageUrls?: string[],
     keptExistingImageUrls?: string[],
-    keptExistingImageUrl?: string
+    keptExistingImageUrl?: string,
+    folderId?: string
   ) => Promise<void>;
   loading?: boolean;
   defaultValues?: Partial<ItemFormData> & {
     id?: string;
+    itemCode?: string;
     imageUrl?: string;
     imageUrls?: string[];
   };
@@ -34,6 +38,12 @@ export default function AdminForm({
   defaultValues,
   submitText = "Add Item",
 }: AdminFormProps) {
+  // For existing items, use their actual itemCode
+  // For new items, generate a unique itemCode upfront
+  const [itemCode] = useState<string>(
+    (defaultValues as any)?.itemCode || generateItemCode()
+  );
+
   const [formData, setFormData] = useState<ItemFormData>({
     name: defaultValues?.name || "",
     category: defaultValues?.category || "Men",
@@ -90,10 +100,7 @@ export default function AdminForm({
         }
 
         // Upload to Cloudinary
-        const url = await uploadImageToCloudinary(
-          file,
-          defaultValues?.id || "new"
-        );
+        const url = await uploadImageToCloudinary(file, itemCode);
         setPrimaryImageUrl(url);
         setKeptExistingImageUrl(url);
       } catch (err) {
@@ -142,10 +149,7 @@ export default function AdminForm({
       }
 
       // Upload all to Cloudinary in parallel
-      const urls = await uploadMultipleImagesToCloudinary(
-        files,
-        defaultValues?.id || "new"
-      );
+      const urls = await uploadMultipleImagesToCloudinary(files, itemCode);
       // Only set newly uploaded images, keep existing images separate
       setAdditionalImageUrls(urls);
     } catch (err) {
@@ -160,14 +164,40 @@ export default function AdminForm({
     }
   };
 
-  const removeAdditionalImage = (index: number) => {
-    const newUrls = additionalImageUrls.filter((_, i) => i !== index);
-    setAdditionalImageUrls(newUrls);
+  const removeAdditionalImage = async (index: number) => {
+    try {
+      const imageUrl = additionalImageUrls[index];
+      // Delete from Cloudinary
+      await deleteImageFromCloudinary(imageUrl);
+      // Remove from state
+      const newUrls = additionalImageUrls.filter((_, i) => i !== index);
+      setAdditionalImageUrls(newUrls);
+      toast.success("Image deleted from Cloudinary");
+    } catch (err) {
+      console.error("Error deleting image:", err);
+      // Still remove from state even if Cloudinary delete fails
+      const newUrls = additionalImageUrls.filter((_, i) => i !== index);
+      setAdditionalImageUrls(newUrls);
+    }
   };
 
-  const removePrimaryImage = () => {
-    setPrimaryImageUrl("");
-    setKeptExistingImageUrl("");
+  const removePrimaryImage = async () => {
+    try {
+      if (primaryImageUrl) {
+        // Delete from Cloudinary
+        await deleteImageFromCloudinary(primaryImageUrl);
+      }
+      setPrimaryImageUrl("");
+      setKeptExistingImageUrl("");
+      if (primaryImageUrl) {
+        toast.success("Image deleted from Cloudinary");
+      }
+    } catch (err) {
+      console.error("Error deleting primary image:", err);
+      // Still clear from state even if Cloudinary delete fails
+      setPrimaryImageUrl("");
+      setKeptExistingImageUrl("");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -198,7 +228,8 @@ export default function AdminForm({
       primaryImageUrl || undefined,
       additionalImageUrls.length > 0 ? additionalImageUrls : undefined,
       keptExistingImageUrls.length > 0 ? keptExistingImageUrls : undefined,
-      keptExistingImageUrl || undefined
+      keptExistingImageUrl || undefined,
+      !defaultValues?.id ? itemCode : undefined // Pass itemCode only for new items
     );
   };
 
@@ -420,10 +451,24 @@ export default function AdminForm({
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      const newUrls = keptExistingImageUrls.filter(
-                        (_, i) => i !== index
-                      );
-                      setKeptExistingImageUrls(newUrls);
+                      (async () => {
+                        try {
+                          // Delete from Cloudinary
+                          await deleteImageFromCloudinary(url);
+                          const newUrls = keptExistingImageUrls.filter(
+                            (_, i) => i !== index
+                          );
+                          setKeptExistingImageUrls(newUrls);
+                          toast.success("Image deleted from Cloudinary");
+                        } catch (err) {
+                          console.error("Error deleting image:", err);
+                          // Still remove from state even if Cloudinary delete fails
+                          const newUrls = keptExistingImageUrls.filter(
+                            (_, i) => i !== index
+                          );
+                          setKeptExistingImageUrls(newUrls);
+                        }
+                      })();
                     }}
                     className="image-remove-button"
                     aria-label={`Remove image ${index + 1}`}
